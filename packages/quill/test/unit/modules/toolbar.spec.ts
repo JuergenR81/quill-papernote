@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { Attributor, Scope } from 'parchment';
 import Quill from '../../../src/core/quill.js';
 import Toolbar, { addControls } from '../../../src/modules/toolbar.js';
 import { normalizeHTML } from '../__helpers__/utils.js';
@@ -243,6 +244,54 @@ describe('Toolbar', () => {
       expect(boldButton?.classList.contains('ql-active')).toBe(false);
       quill.format('bold', true, 'user');
       expect(boldButton?.classList.contains('ql-active')).toBe(true);
+    });
+  });
+
+  // Matching a dropdown value used to interpolate it into an attribute selector after
+  // escaping quotes but not backslashes, which silently matched nothing for a value
+  // ending in "\" and threw a SyntaxError for one containing '\"'.
+  describe('select value matching', () => {
+    const Tricky = new Attributor('tricky', 'data-tricky', {
+      scope: Scope.INLINE,
+    });
+    const values = ['plain', 'a\\', 'x\\"y'];
+
+    const setup = (value: string) => {
+      const container = createContainer(
+        `<p><span data-tricky="${value.replace(/"/g, '&quot;')}">0123</span></p>`,
+      );
+      Quill.register(
+        {
+          'themes/snow': SnowTheme,
+          'modules/toolbar': Toolbar,
+          'modules/clipboard': Clipboard,
+          'modules/keyboard': Keyboard,
+          'modules/history': History,
+          'modules/uploader': Uploader,
+          'modules/input': Input,
+          'modules/uiNode': UINode,
+        },
+        true,
+      );
+      const quill = new Quill(container, {
+        modules: { toolbar: [[{ tricky: values }]] },
+        theme: 'snow',
+        registry: createRegistry([Tricky]),
+      });
+      const select = container.parentNode?.querySelector(
+        'select.ql-tricky',
+      ) as HTMLSelectElement;
+      return { quill, select };
+    };
+
+    values.forEach((value, index) => {
+      test(`selects the option for ${JSON.stringify(value)}`, () => {
+        const { quill, select } = setup(value);
+
+        quill.setSelection(2);
+
+        expect(select.selectedIndex).toEqual(index);
+      });
     });
   });
 });

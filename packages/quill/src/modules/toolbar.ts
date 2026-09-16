@@ -147,11 +147,14 @@ class Toolbar extends Module<ToolbarProps> {
         } else if (formats[format] == null) {
           option = input.querySelector('option[selected]');
         } else if (!Array.isArray(formats[format])) {
-          let value = formats[format];
-          if (typeof value === 'string') {
-            value = value.replace(/"/g, '\\"');
-          }
-          option = input.querySelector(`option[value="${value}"]`);
+          // Compared directly rather than through an attribute selector: escaping a
+          // value into CSS string syntax has to handle backslashes as well as quotes,
+          // and getting it wrong either silently matches nothing or throws.
+          const value = String(formats[format]);
+          option =
+            Array.from(input.querySelectorAll('option')).find(
+              (candidate) => candidate.value === value,
+            ) ?? null;
         }
         if (option == null) {
           // @ts-expect-error TODO fix me later
