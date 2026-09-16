@@ -1,13 +1,13 @@
 const { version, homepage } = require('./package.json');
 
 const cdn = process.env.NEXT_PUBLIC_LOCAL_QUILL
-  ? `http://localhost:${process.env.npm_package_config_ports_webpack}`
+  ? `http://localhost:${process.env.QUILL_DEV_PORT || 9080}`
   : `https://cdn.jsdelivr.net/npm/quill@${version}/dist`;
 
 module.exports = {
   version,
   cdn,
-  github: 'https://github.com/slab/quill/tree/main/packages/website/',
+  github: 'https://github.com/quill-next/quill-next/tree/main/packages/website/',
   highlightjs: 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0',
   katex: 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist',
   url: homepage,

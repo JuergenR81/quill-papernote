@@ -30,9 +30,18 @@ module.exports = (env) =>
     devtool: 'source-map',
     plugins: [bannerPack, constantPack],
     devServer: {
-      static: {
-        directory: resolve(__dirname, './dist'),
-      },
+      // 'auto' picks a free port instead of failing when another instance already
+      // holds the default one. The root dev script pins an explicit port so the
+      // website knows where to load Quill from.
+      port: process.env.QUILL_DEV_PORT
+        ? Number(process.env.QUILL_DEV_PORT)
+        : 'auto',
+      static: [
+        // demo/ first so its index.html is served at '/', next to the built quill.js
+        // that it loads with a relative path.
+        { directory: resolve(__dirname, './demo') },
+        { directory: resolve(__dirname, './dist') },
+      ],
       hot: false,
       allowedHosts: 'all',
       devMiddleware: {

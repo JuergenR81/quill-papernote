@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Quill Next — local dev</title>
+    <!-- Same-origin relative paths: served by this dev server on whatever port it picked,
+         so there is no hardcoded port and no mixed content. -->
+    <link rel="stylesheet" href="./quill.snow.css" />
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 24px; background: #fafafa; color: #111; }
+      main { max-width: 900px; margin: 0 auto; }
+      h1 { font-size: 16px; margin: 0 0 16px; font-weight: 600; }
+      #editor { height: 280px; background: #fff; }
+      #delta { background: #fff; border: 1px solid #e3e3e3; border-radius: 6px; padding: 12px; margin-top: 16px;
+               font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; max-height: 220px; overflow: auto; }
+      .err { background: #fdecea; border: 1px solid #f5c2bd; color: #b3261e; padding: 12px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Quill Next — local dev build</h1>
+      <div id="toolbar">
+        <span class="ql-formats">
+          <select class="ql-size"></select>
+          <select class="ql-color"></select>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-bold"></button>
+          <button class="ql-italic"></button>
+          <button class="ql-underline"></button>
+          <button class="ql-strike"></button>
+          <button class="ql-link"></button>
+          <button class="ql-code"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-header" value="1"></button>
+          <button class="ql-header" value="2"></button>
+          <button class="ql-blockquote"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-list" value="check"></button>
+          <button class="ql-list" value="bullet"></button>
+          <button class="ql-list" value="ordered"></button>
+          <button class="ql-indent" value="-1"></button>
+          <button class="ql-indent" value="+1"></button>
+        </span>
+        <span class="ql-formats">
+          <button class="ql-clean"></button>
+        </span>
+      </div>
+      <div id="editor"></div>
+      <div id="delta">—</div>
+    </main>
+
+    <script src="./quill.js"></script>
+    <script>
+      if (typeof Quill === 'undefined') {
+        document.querySelector('main').innerHTML =
+          '<p class="err">quill.js did not load. Run <code>pnpm --filter quill-next run build</code>, ' +
+          'then reload — the dev server serves the build output from dist/.</p>';
+      } else {
+        var Delta = Quill.import('delta');
+        var quill = new Quill('#editor', {
+          theme: 'snow',
+          placeholder: 'Type here…',
+          modules: { toolbar: '#toolbar' },
+        });
+
+        quill.setContents(
+          new Delta()
+            .insert('bold red text', { bold: true, color: '#e60000' })
+            .insert('\n')
+            .insert('a link to example.com', { link: 'https://example.com' })
+            .insert('\n')
+            .insert('buy milk')
+            .insert('\n', { list: 'unchecked' })
+            .insert('walk the dog')
+            .insert('\n', { list: 'checked' })
+            .insert('plain line\n'),
+        );
+
+        var render = function () {
+          var li = quill.root.querySelector('li[data-list]');
+          document.getElementById('delta').textContent =
+            'Delta:\n' +
+            JSON.stringify(quill.getContents().ops, null, 1)
+              .split(String.fromCharCode(0x2028))
+              .join('\\u2028') +
+            (li
+              ? '\n\nchecklist item: role=' + li.getAttribute('role') +
+                ' aria-checked=' + li.getAttribute('aria-checked')
+              : '');
+        };
+        quill.on('editor-change', render);
+        render();
+      }
+    </script>
+  </body>
+</html>

@@ -19,6 +19,8 @@ export default defineConfig({
       enabled: true,
       provider: 'playwright',
       name: process.env.BROWSER || 'chromium',
+      // Headless by default so a test run never steals focus. Set HEADED=true to watch it.
+      headless: process.env.HEADED !== 'true',
     },
   },
 });
