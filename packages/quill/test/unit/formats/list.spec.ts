@@ -63,8 +63,8 @@ describe('List', () => {
     );
     expect(editor.scroll.domNode).toEqualHTML(`
       <ol>
-        <li data-list="checked">0123</li>
-        <li data-list="unchecked">5678</li>
+        <li aria-checked="true" data-list="checked" role="checkbox">0123</li>
+        <li aria-checked="false" data-list="unchecked" role="checkbox">5678</li>
       </ol>
       <p>0123</p>
     `);
@@ -231,9 +231,9 @@ describe('List', () => {
     );
     expect(editor.scroll.domNode).toEqualHTML(`
       <ol>
-        <li data-list="checked">0123</li>
-        <li data-list="checked">5678</li>
-        <li data-list="checked">0123</li>
+        <li aria-checked="true" data-list="checked" role="checkbox">0123</li>
+        <li aria-checked="true" data-list="checked" role="checkbox">5678</li>
+        <li aria-checked="true" data-list="checked" role="checkbox">0123</li>
       </ol>
     `);
   });
@@ -389,5 +389,48 @@ describe('List', () => {
         <li data-list="ordered"><br /></li>
       </ol>
     `);
+  });
+
+  describe('checklist accessibility', () => {
+    const listItem = (html: string) =>
+      createScroll(html).domNode.querySelector('li') as HTMLElement;
+
+    test('exposes checkbox semantics on parsed items', () => {
+      const item = listItem('<ol><li data-list="unchecked">0123</li></ol>');
+
+      expect(item.getAttribute('role')).toBe('checkbox');
+      expect(item.getAttribute('aria-checked')).toBe('false');
+    });
+
+    test('reflects the checked state', () => {
+      const item = listItem('<ol><li data-list="checked">0123</li></ol>');
+
+      expect(item.getAttribute('aria-checked')).toBe('true');
+    });
+
+    test('hides the rendered box from assistive technology', () => {
+      const item = listItem('<ol><li data-list="checked">0123</li></ol>');
+
+      expect(item.querySelector('.ql-ui')?.getAttribute('aria-hidden')).toBe(
+        'true',
+      );
+    });
+
+    test('gives a plain list item no checkbox semantics', () => {
+      const item = listItem('<ol><li data-list="bullet">0123</li></ol>');
+
+      expect(item.hasAttribute('role')).toBe(false);
+      expect(item.hasAttribute('aria-checked')).toBe(false);
+    });
+
+    test('updates aria-checked when the value changes', () => {
+      const editor = new Editor(
+        createScroll('<ol><li data-list="unchecked">0123</li></ol>'),
+      );
+      editor.formatText(4, 1, { list: 'checked' });
+
+      const item = editor.scroll.domNode.querySelector('li') as HTMLElement;
+      expect(item.getAttribute('aria-checked')).toBe('true');
+    });
   });
 });
