@@ -9,7 +9,7 @@ import type Clipboard from '../modules/clipboard.js';
 import type History from '../modules/history.js';
 import type Keyboard from '../modules/keyboard.js';
 import type Uploader from '../modules/uploader.js';
-import Editor from './editor.js';
+import Editor, { type SemanticHTMLOptions } from './editor.js';
 import Emitter, { ensureDocumentListeners } from './emitter.js';
 import type { EmitterSource } from './emitter.js';
 import instances from './instances.js';
@@ -541,15 +541,41 @@ class Quill {
     return this.selection.getRange()[0];
   }
 
-  getSemanticHTML(range: Range): string;
+  getSemanticHTML(options?: SemanticHTMLOptions): string;
+  getSemanticHTML(range: Range, options?: SemanticHTMLOptions): string;
+  getSemanticHTML(index: number, options?: SemanticHTMLOptions): string;
   getSemanticHTML(index?: number, length?: number): string;
-  getSemanticHTML(index: Range | number = 0, length?: number) {
-    if (typeof index === 'number') {
-      length = length ?? this.getLength() - index;
+  // `undefined` is allowed positionally so options can be passed without an index
+  // or length, as in getSemanticHTML(undefined, 10, options).
+  getSemanticHTML(
+    index: number | undefined,
+    length: number | undefined,
+    options?: SemanticHTMLOptions,
+  ): string;
+  getSemanticHTML(
+    rangeOrIndexOrOptions: Range | number | SemanticHTMLOptions = 0,
+    lengthOrOptions?: number | SemanticHTMLOptions,
+    options?: SemanticHTMLOptions,
+  ) {
+    // Every argument before the options object is optional, so the options can
+    // arrive in any of the three positions.
+    const semanticOptions =
+      options ??
+      asSemanticHTMLOptions(lengthOrOptions) ??
+      asSemanticHTMLOptions(rangeOrIndexOrOptions);
+
+    if (isRange(rangeOrIndexOrOptions)) {
+      const { index, length } = rangeOrIndexOrOptions;
+      return this.editor.getHTML(index, length, semanticOptions);
     }
-    // @ts-expect-error
-    [index, length] = overload(index, length);
-    return this.editor.getHTML(index, length);
+
+    const index =
+      typeof rangeOrIndexOrOptions === 'number' ? rangeOrIndexOrOptions : 0;
+    const length =
+      typeof lengthOrOptions === 'number'
+        ? lengthOrOptions
+        : this.getLength() - index;
+    return this.editor.getHTML(index, length, semanticOptions);
   }
 
   getText(range?: Range): string;
@@ -1062,7 +1088,28 @@ function shiftRange(
   return new Range(start, end - start);
 }
 
-export type { Bounds, DebugLevel, EmitterSource };
+// Structural rather than `instanceof Range`, because the public API accepts plain
+// `{ index, length }` objects everywhere a range is taken.
+function isRange(value: unknown): value is Range {
+  return (
+    value != null &&
+    typeof value === 'object' &&
+    'index' in value &&
+    typeof value.index === 'number' &&
+    'length' in value &&
+    typeof value.length === 'number'
+  );
+}
+
+function asSemanticHTMLOptions(
+  value: unknown,
+): SemanticHTMLOptions | undefined {
+  return value != null && typeof value === 'object' && !isRange(value)
+    ? (value as SemanticHTMLOptions)
+    : undefined;
+}
+
+export type { Bounds, DebugLevel, EmitterSource, SemanticHTMLOptions };
 export { Parchment, Range };
 
 export { globalRegistry, expandConfig, overload, Quill as default };
