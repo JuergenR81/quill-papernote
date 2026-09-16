@@ -1,3 +1,7 @@
-# Quill Official Website
+# Quill Next Website
 
-[https://quilljs.com](https://quilljs.com)
+The documentation site and playground for Quill Next.
+
+[https://quill-next.diverse.space](https://quill-next.diverse.space)
+
+Run it from the repository root — see [DEVELOPMENT.md](../../.github/DEVELOPMENT.md).

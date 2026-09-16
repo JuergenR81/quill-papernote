@@ -110,10 +110,34 @@ npm install quill-next
 
 ## Packages
 
-- **[Quill](./packages/quill/):** The original Quill editor with bug fixes and improvements.
-- **[Quill Next React](./packages/quill-next-react/)**: The React wrapper for Quill Next.
-- **[Quill Next Vue](./packages/quill-next-vue/)**: The Vue 3 wrapper for Quill Next.
-- **[Website](./packages/website/)**: The website of Quill Next, including demo and documentation.
+- **[Quill](./packages/quill/)** (`quill-next`): The editor itself — Quill with bug fixes and improvements.
+- **[Quill Next React](./packages/quill-next-react/)** (`quill-next-react`): The React wrapper.
+- **[Quill Next Vue](./packages/quill-next-vue/)** (`@quill-next/vue`): The Vue 3 wrapper.
+- **[Website](./packages/website/)**: The documentation site, demos and playground.
+
+## Development
+
+This repository is a **pnpm** workspace and needs **Node.js 20+**. npm and Yarn cannot install
+it — the packages reference each other with pnpm's `workspace:*` protocol. Run `corepack enable`
+to pick up the pnpm version pinned in `package.json`.
+
+```shell
+pnpm install     # install
+pnpm start       # build the libraries, then run both dev servers
+```
+
+`pnpm start` prints the URLs it bound to. Open the **Quill dev server** URL
+(`http://localhost:9080/` by default) to try the editor directly; it serves a local demo
+harness with a toolbar and a live Delta view.
+
+```shell
+pnpm --filter quill-next run test:unit    # unit tests (headless)
+pnpm --filter quill-next run lint         # eslint + tsc
+pnpm run build                            # build every package
+```
+
+Full details, including a known issue with the hosted playground pages, are in
+[DEVELOPMENT.md](./.github/DEVELOPMENT.md).
 
 ## License
 
