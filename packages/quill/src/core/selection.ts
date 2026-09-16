@@ -148,14 +148,22 @@ class Selection {
   }
 
   format(format: string, value: unknown) {
+    this.formats({ [format]: value });
+  }
+
+  /**
+   * Applies several pending formats to the caret in one pass. Formatting one at a time
+   * splits the leaf and re-runs `scroll.optimize()` per format, which can fail to
+   * converge next to an embed (see the soft-break blot's no-op `optimize`).
+   */
+  formats(formats: Record<string, unknown>) {
     this.scroll.update();
     const nativeRange = this.getNativeRange();
-    if (
-      nativeRange == null ||
-      !nativeRange.native.collapsed ||
-      this.scroll.query(format, Scope.BLOCK)
-    )
-      return;
+    if (nativeRange == null || !nativeRange.native.collapsed) return;
+    const inlineFormats = Object.entries(formats).filter(
+      ([name]) => !this.scroll.query(name, Scope.BLOCK),
+    );
+    if (inlineFormats.length === 0) return;
     if (nativeRange.start.node !== this.cursor.textNode) {
       const blot = this.scroll.find(nativeRange.start.node, false);
       if (blot == null) return;
@@ -169,7 +177,7 @@ class Selection {
       }
       this.cursor.attach();
     }
-    this.cursor.format(format, value);
+    inlineFormats.forEach(([name, value]) => this.cursor.format(name, value));
     this.scroll.optimize();
     this.setNativeRange(this.cursor.textNode, this.cursor.textNode.data.length);
     this.update();

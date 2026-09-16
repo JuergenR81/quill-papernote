@@ -16,6 +16,23 @@ const SHORTKEY =
     ? 'metaKey'
     : 'ctrlKey';
 
+// A link or an inline code span belongs to the block it was opened in, so pressing
+// Enter ends it rather than continuing it onto the new line.
+const FORMATS_ENDING_AT_BLOCK_BREAK = ['code', 'link'];
+
+const formatsInScope = (
+  quill: Quill,
+  format: Record<string, unknown>,
+  scope: Scope,
+) =>
+  Object.keys(format).reduce((formats: Record<string, unknown>, name) => {
+    // An array value means the range spans mixed values, so there is nothing to carry over.
+    if (quill.scroll.query(name, scope) && !Array.isArray(format[name])) {
+      formats[name] = format[name];
+    }
+    return formats;
+  }, {});
+
 export interface Context {
   collapsed: boolean;
   empty: boolean;
@@ -340,18 +357,7 @@ class Keyboard extends Module<KeyboardOptions> {
   }
 
   handleEnter(range: Range, context: Context) {
-    const lineFormats = Object.keys(context.format).reduce(
-      (formats: Record<string, unknown>, format) => {
-        if (
-          this.quill.scroll.query(format, Scope.BLOCK) &&
-          !Array.isArray(context.format[format])
-        ) {
-          formats[format] = context.format[format];
-        }
-        return formats;
-      },
-      {},
-    );
+    const lineFormats = formatsInScope(this.quill, context.format, Scope.BLOCK);
     const delta = new Delta()
       .retain(range.index)
       .delete(range.length)
@@ -359,15 +365,34 @@ class Keyboard extends Module<KeyboardOptions> {
     this.quill.updateContents(delta, Quill.sources.USER);
     this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
     this.quill.focus();
+
+    // The inserted '\n' only carries block formats, so the new line would otherwise
+    // start with the inline formats (bold, colour, size, ...) dropped.
+    const inlineFormats = formatsInScope(
+      this.quill,
+      context.format,
+      Scope.INLINE,
+    );
+    FORMATS_ENDING_AT_BLOCK_BREAK.forEach((name) => delete inlineFormats[name]);
+    this.quill.selection.formats(inlineFormats);
   }
 
-  handleShiftEnter(range: Range) {
-    this.quill.insertText(
-      range.index,
-      SOFT_BREAK_CHARACTER,
-      Quill.sources.USER,
+  handleShiftEnter(range: Range, context: Context) {
+    const inlineFormats = formatsInScope(
+      this.quill,
+      context.format,
+      Scope.INLINE,
     );
+    const delta = new Delta()
+      .retain(range.index)
+      .delete(range.length)
+      .insert(SOFT_BREAK_CHARACTER, inlineFormats);
+    this.quill.updateContents(delta, Quill.sources.USER);
     this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
+
+    // A soft break stays inside its block, so text typed after it continues with the
+    // same inline formats. Formatting the break alone does not set the caret's format.
+    this.quill.selection.formats(inlineFormats);
   }
 }
 
@@ -465,6 +490,22 @@ const defaultOptions: KeyboardOptions = {
           formats,
           Quill.sources.USER,
         );
+      },
+    },
+    // Checklist items are not tab stops (Tab indents lists), so toggling needs its own key.
+    'checklist toggle': {
+      key: 'Enter',
+      shortKey: true,
+      format: ['list'],
+      handler(range, context) {
+        const { list } = context.format;
+        if (list !== 'checked' && list !== 'unchecked') return true;
+        this.quill.format(
+          'list',
+          list === 'checked' ? 'unchecked' : 'checked',
+          Quill.sources.USER,
+        );
+        return false;
       },
     },
     'checklist enter': {
@@ -606,6 +647,12 @@ const defaultOptions: KeyboardOptions = {
         this.quill.updateContents(delta, Quill.sources.USER);
         this.quill.history.cutoff();
         this.quill.setSelection(range.index - length, Quill.sources.SILENT);
+
+        // The deleted prefix carried the line's inline formats; without restoring them
+        // the caret is left unformatted on the now-empty list item.
+        this.quill.selection.formats(
+          formatsInScope(this.quill, context.format, Scope.INLINE),
+        );
         return false;
       },
     },
