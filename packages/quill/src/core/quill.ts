@@ -1,4 +1,4 @@
-import { merge } from 'lodash-es';
+import { mergeWith } from 'lodash-es';
 import * as Parchment from 'parchment';
 import type { Op } from '@quill-next/delta-es';
 import Delta from '@quill-next/delta-es';
@@ -795,6 +795,13 @@ function omitUndefinedValuesFromOptions(obj: QuillOptions) {
   );
 }
 
+// A configured array replaces the default one. lodash's merge would otherwise combine
+// them index by index, so overriding a keyboard binding's `format: ['list']` against the
+// default `['blockquote', 'indent', 'list']` would silently yield a spliced array.
+function replaceArrays(_target: unknown, source: unknown) {
+  return Array.isArray(source) ? source : undefined;
+}
+
 function expandConfig(
   containerOrSelector: HTMLElement | string,
   options: QuillOptions,
@@ -829,11 +836,12 @@ function expandConfig(
     };
   }
 
-  const modules: ExpandedQuillOptions['modules'] = merge(
+  const modules: ExpandedQuillOptions['modules'] = mergeWith(
     {},
     expandModuleConfig(quillModuleDefaults),
     expandModuleConfig(themeModuleDefaults),
     userModuleOptions,
+    replaceArrays,
   );
 
   const config = {
@@ -871,8 +879,13 @@ function expandConfig(
         }
         return {
           ...modulesWithDefaults,
-          // @ts-expect-error
-          [name]: merge({}, moduleClass.DEFAULTS || {}, value),
+          [name]: mergeWith(
+            {},
+            // @ts-expect-error Quill.import is typed as unknown
+            moduleClass.DEFAULTS || {},
+            value,
+            replaceArrays,
+          ),
         };
       },
       {},

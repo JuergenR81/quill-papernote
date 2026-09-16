@@ -790,6 +790,32 @@ describe('Quill', () => {
       Toolbar.DEFAULTS = oldToolbar;
     });
 
+    test('a configured array replaces the default array', () => {
+      const config = expandConfig(`#${testContainerId}`, {
+        modules: {
+          uploader: { mimetypes: ['image/gif'] },
+        },
+      });
+      // Not spliced onto the default ['image/png', 'image/jpeg'].
+      // @ts-expect-error -- module options are not statically typed
+      expect(config.modules.uploader.mimetypes).toEqual(['image/gif']);
+    });
+
+    test('an overridden keyboard binding keeps the formats it asked for', () => {
+      const config = expandConfig(`#${testContainerId}`, {
+        modules: {
+          keyboard: {
+            bindings: {
+              indent: { key: 'Tab', format: ['list'] },
+            },
+          },
+        },
+      });
+      // The default binding is format: ['blockquote', 'indent', 'list'].
+      // @ts-expect-error -- module options are not statically typed
+      expect(config.modules.keyboard.bindings.indent.format).toEqual(['list']);
+    });
+
     test('toolbar default', () => {
       const config = expandConfig(`#${testContainerId}`, {
         modules: {
