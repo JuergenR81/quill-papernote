@@ -52,6 +52,57 @@ quill.destroy();  // the modules are also destroyed
 - Support [Soft Break](https://github.com/slab/quill/pull/4565)
   - Press `Shift + Enter` to insert a soft break.
 
+## Fixes on top of Quill Next 2.2.6
+
+These are in this repository but not yet in the published `quill-next` package.
+
+**Formatting survives a rewritten line.** Pressing `Enter` used to drop every inline
+format — bold, colour, size — because only block-scoped formats were carried to the new
+line. They are kept now; links and inline code deliberately end at the block break. The
+same gap affected two more paths:
+
+- `Shift + Enter` inserts a soft break that keeps the surrounding formats, and text typed
+  after it stays formatted. Pressing it with text selected now replaces the selection,
+  which plain `Enter` already did.
+- Typing `[]`, `-` or `1.` followed by a space turns the line into a list item without
+  losing the formats that the typed characters carried.
+
+Applying the formats in one pass also removes a crash: doing it one at a time re-ran
+Parchment's optimize pass per format and could fail to converge next to a soft break,
+throwing `[Parchment] Maximum optimize iterations reached` for a combination such as a
+large font size together with bold.
+
+**Checklists are real checkboxes to assistive technology.** Checklist items carry
+`role="checkbox"` and a synced `aria-checked`. The role sits on the `<li>` so the item's
+own text becomes its accessible name, which is why no separate label is needed.
+`Ctrl`/`Cmd` + `Enter` toggles an item from the keyboard, since `Tab` is already bound to
+indenting.
+
+**Configured arrays replace defaults instead of merging by index.** Module options were
+merged with lodash `merge`, so overriding a keyboard binding with `format: ['list']`
+against the default `['blockquote', 'indent', 'list']` silently produced
+`['list', 'indent', 'list']` and the binding fired in unintended contexts. This also
+affected `uploader.mimetypes`.
+
+**Toolbar dropdowns match reliably.** Selecting the active `<option>` interpolated the
+format value into a CSS attribute selector, escaping quotes but not backslashes. A value
+ending in `\` silently matched nothing; one containing `\"` threw a `SyntaxError` that
+aborted the toolbar update. Values are compared directly now.
+
+**`getSemanticHTML` can keep regular spaces.** Since Quill 2.0.3 every space became
+`&nbsp;`, which neither wraps nor collapses, so exporting and re-importing changed the
+document:
+
+```ts
+quill.getSemanticHTML()                             // "zwei&nbsp;&nbsp;Wörter"
+quill.getSemanticHTML({ preserveWhitespace: true }) // "zwei  Wörter"
+```
+
+The default is unchanged. Adapted from [#55](https://github.com/quill-next/quill-next/pull/55).
+
+The development setup was also repaired — `pnpm start` used to recurse infinitely, and the
+docs told you to use npm. See [DEVELOPMENT.md](./.github/DEVELOPMENT.md).
+
 ## Quickstart
 
 ### React Quill
