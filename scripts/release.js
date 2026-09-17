@@ -15,6 +15,9 @@ const args = parseArgs({
 
 const dryRun = args.values["dry-run"];
 
+/** The only package this script publishes. */
+const packageFolder = "packages/quill";
+
 if (dryRun) {
   console.log('Running in "dry-run" mode');
 }
@@ -88,11 +91,15 @@ async function main() {
   );
 
   /*
-   * Bump npm versions
+   * Bump the released package and the workspace root. The other packages keep their
+   * own versions: they are released separately and are not published by this script.
    */
-  exec(`npm version ${version} --workspaces --force`);
-  exec("git add **/package.json");
-  exec(`npm version ${version} --include-workspace-root --force`);
+  const bump = `npm version ${version} --no-git-tag-version --allow-same-version`;
+  exec(bump, { cwd: packageFolder });
+  exec(bump);
+  exec(`git add package.json ${packageFolder}/package.json`);
+  exec(`git commit -m "v${version}"`);
+  exec(`git tag -a v${version} -m "v${version}"`);
 
   const pushCommand = `git push origin ${process.env.GITHUB_REF_NAME} --follow-tags`;
   if (distTag === "experimental") {
@@ -109,28 +116,28 @@ async function main() {
    * Build Quill package
    */
   console.log("Building Quill");
-  exec("npm run build:quill");
+  exec("pnpm run build:quill");
 
   /*
-   * Publish Quill package
+   * Publish Quill package. The package root is packages/quill and ships its build
+   * output in dist/, which is what "main": "dist/quill.js" points at.
    */
   console.log("Publishing Quill");
-  const distFolder = "packages/quill/dist";
-  if (
-    JSON.parse(fs.readFileSync(path.join(distFolder, "package.json"), "utf-8"))
-      .version !== version
-  ) {
-    exitWithError(
-      "Version mismatch between package.json and dist/package.json"
-    );
+  const bundle = path.join(packageFolder, "dist", "quill.js");
+  if (!fs.existsSync(bundle)) {
+    exitWithError(`Build did not produce ${bundle}`);
   }
 
   const readme = fs.readFileSync("README.md", "utf-8");
-  fs.writeFileSync(path.join(distFolder, "README.md"), readme);
+  fs.writeFileSync(path.join(packageFolder, "README.md"), readme);
 
-  exec(`npm publish --tag ${distTag}${dryRun ? " --dry-run" : ""}`, {
-    cwd: distFolder,
-  });
+  // pnpm rewrites the workspace: protocol into real version ranges on publish; npm
+  // does not, and would ship unusable dependency specs for the wrapper packages.
+  // --no-git-checks because this script does its own, and the tag is created above.
+  exec(
+    `pnpm publish --tag ${distTag} --no-git-checks${dryRun ? " --dry-run" : ""}`,
+    { cwd: packageFolder },
+  );
 
   /*
    * Create GitHub release
@@ -150,7 +157,7 @@ async function main() {
   /*
    * Create npm package tarball
    */
-  exec("npm pack", { cwd: distFolder });
+  exec("pnpm pack", { cwd: packageFolder });
 }
 
 main();
