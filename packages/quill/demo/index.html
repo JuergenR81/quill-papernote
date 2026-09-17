@@ -14,6 +14,37 @@
       #delta { background: #fff; border: 1px solid #e3e3e3; border-radius: 6px; padding: 12px; margin-top: 16px;
                font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; max-height: 220px; overflow: auto; }
       .err { background: #fdecea; border: 1px solid #f5c2bd; color: #b3261e; padding: 12px; border-radius: 6px; }
+
+      /* Custom entries for the font picker. Quill renders the value as a class, so each
+         one needs a rule to be visible, and a ::before to be labelled in the dropdown.
+         serif and monospace ship with quill.snow.css already.
+
+         Each stack leads with a Windows/macOS face and falls back to one that exists on
+         a typical Linux desktop, so all five options really do render differently
+         everywhere. Comic Sans and Impact are deliberately not used: neither exists on
+         Linux, and both collapse onto the same fallback as the entries below. */
+      .ql-font-narrow { font-family: 'Arial Narrow', 'Liberation Sans Narrow', 'Nimbus Sans Narrow', sans-serif; }
+      .ql-font-script { font-family: 'Brush Script MT', 'Z003', 'URW Chancery L', cursive; }
+
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='narrow']::before,
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='narrow']::before {
+        content: 'Narrow';
+        font-family: 'Arial Narrow', 'Liberation Sans Narrow', sans-serif;
+      }
+      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value='script']::before,
+      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value='script']::before {
+        content: 'Script';
+        font-family: 'Brush Script MT', 'Z003', cursive;
+      }
+      /* The font picker needs room for the longer labels. */
+      .ql-snow .ql-picker.ql-font { width: 150px; }
+
+      #formats { background: #fff; border: 1px solid #e3e3e3; border-radius: 6px; padding: 12px;
+                 margin-top: 16px; font: 12px/1.6 ui-monospace, monospace; min-height: 42px; }
+      #formats b { color: #0a7d34; }
+      #formats .none { color: #999; }
+      .legend { color: #666; font-size: 12px; line-height: 1.6; margin: 10px 2px 0; }
+      .legend code { background: #eee; padding: 1px 4px; border-radius: 3px; }
     </style>
   </head>
   <body>
@@ -21,8 +52,16 @@
       <h1>Quill Next — local dev build</h1>
       <div id="toolbar">
         <span class="ql-formats">
+          <select class="ql-font">
+            <option selected></option>
+            <option value="serif"></option>
+            <option value="monospace"></option>
+            <option value="narrow"></option>
+            <option value="script"></option>
+          </select>
           <select class="ql-size"></select>
           <select class="ql-color"></select>
+          <select class="ql-background"></select>
         </span>
         <span class="ql-formats">
           <button class="ql-bold"></button>
@@ -49,6 +88,14 @@
         </span>
       </div>
       <div id="editor"></div>
+      <div id="formats">—</div>
+      <p class="legend">
+        Formats that are <em>meant</em> to end, so losing them is not a bug:
+        <code>link</code> and <code>code</code> at a hard line break,
+        <code>header</code> on the line after a heading, everything after the
+        <em>clear formatting</em> button, and any format the caret leaves by moving
+        into differently formatted text.
+      </p>
       <div id="delta">—</div>
     </main>
 
@@ -60,6 +107,13 @@
           'then reload — the dev server serves the build output from dist/.</p>';
       } else {
         var Delta = Quill.import('delta');
+
+        // Quill only accepts font values that are on the whitelist, so the extra picker
+        // entries have to be registered before the editor is constructed.
+        var Font = Quill.import('formats/font');
+        Font.whitelist = ['serif', 'monospace', 'narrow', 'script'];
+        Quill.register(Font, true);
+
         var quill = new Quill('#editor', {
           theme: 'snow',
           placeholder: 'Type here…',
@@ -70,6 +124,19 @@
           new Delta()
             .insert('bold red text', { bold: true, color: '#e60000' })
             .insert('\n')
+            .insert('script font, huge and bold', {
+              font: 'script',
+              size: 'huge',
+              bold: true,
+            })
+            .insert('\n')
+            .insert('narrow font with a background', {
+              font: 'narrow',
+              background: '#ffff00',
+            })
+            .insert('\n')
+            .insert('monospace italic', { font: 'monospace', italic: true })
+            .insert('\n')
             .insert('a link to example.com', { link: 'https://example.com' })
             .insert('\n')
             .insert('buy milk')
@@ -78,6 +145,28 @@
             .insert('\n', { list: 'checked' })
             .insert('plain line\n'),
         );
+
+        // Shows what the caret currently carries, so a format that disappears is visible
+        // the moment it happens instead of having to be read out of the Delta.
+        var renderFormats = function () {
+          var range = quill.getSelection();
+          var target = document.getElementById('formats');
+          if (!range) {
+            target.innerHTML = '<span class="none">no selection</span>';
+            return;
+          }
+          var formats = quill.getFormat(range);
+          var current = Object.keys(formats)
+            .sort()
+            .map(function (name) {
+              return name + '=' + JSON.stringify(formats[name]);
+            })
+            .join('   ');
+
+          target.innerHTML =
+            'format at caret (' + range.index + ', ' + range.length + '):  ' +
+            (current ? '<b>' + current + '</b>' : '<span class="none">none</span>');
+        };
 
         var render = function () {
           var li = quill.root.querySelector('li[data-list]');
@@ -90,6 +179,7 @@
               ? '\n\nchecklist item: role=' + li.getAttribute('role') +
                 ' aria-checked=' + li.getAttribute('aria-checked')
               : '');
+          renderFormats();
         };
         quill.on('editor-change', render);
         render();
