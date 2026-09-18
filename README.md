@@ -4,19 +4,10 @@ A fork of [Quill Next](https://github.com/quill-next/quill-next) that fixes losi
 formatting after Enter and soft breaks, adds accessible checklists and markdown
 headings, and makes the repository runnable again.
 
-Maintained for [PaperNote](https://github.com/jr19812). Use it if the same bugs are in
-your way — but it comes with no support and no stability promises.
+It exists because these bugs were in the way of another project. Use it if they are in
+yours — but it comes with no support and no stability promises.
 
-## Why this fork exists
-
-Quill itself has not seen a commit since July 2025, and its foundations — `parchment`
-and `delta` — have been untouched for over two years. Quill Next continues it, but
-thinly: the report that formatting is lost after every Enter has been open since June
-2025, the request for working setup instructions since July 2025, and three competing
-pull requests for one `getSemanticHTML` bug have sat unmerged since November 2025.
-
-Those are the defects this fork addresses, listed under
-[Fixes](#fixes-on-top-of-quill-next-226) below. Everything else is unchanged: the API,
+Everything outside the [fixes](#fixes-on-top-of-quill-next-226) is unchanged: the API,
 the Delta format and the package name `quill-next`, so it drops into an existing
 project without touching a single import.
 
