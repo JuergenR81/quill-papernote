@@ -546,6 +546,18 @@ const defaultOptions: KeyboardOptions = {
         this.quill.updateContents(delta, Quill.sources.USER);
         this.quill.setSelection(range.index + 1, Quill.sources.SILENT);
         this.quill.scrollSelectionIntoView();
+
+        // Only the header ends here. Bold, colour, size and font were chosen by the
+        // user rather than implied by the heading, so they continue on the new line.
+        const inlineFormats = formatsInScope(
+          this.quill,
+          context.format,
+          Scope.INLINE,
+        );
+        FORMATS_ENDING_AT_BLOCK_BREAK.forEach((name) => {
+          delete inlineFormats[name];
+        });
+        this.quill.selection.formats(inlineFormats);
       },
     },
     'table backspace': {

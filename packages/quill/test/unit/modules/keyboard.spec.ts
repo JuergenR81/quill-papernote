@@ -180,6 +180,7 @@ describe('Keyboard', () => {
     });
 
     // A header ends at the block break; only the line it was opened on stays a header.
+    // The inline formats the user chose are not part of that and carry over.
     test('starts a plain paragraph after a header', () => {
       const quill = createQuill(
         new Delta().insert('heading').insert('\n', { header: 1 }),
@@ -187,6 +188,19 @@ describe('Keyboard', () => {
       quill.setSelection(7, 0);
       pressEnter(quill);
 
+      expect(quill.getFormat().header).toBeUndefined();
+    });
+
+    test('keeps inline formats when a heading ends', () => {
+      const quill = createQuill(
+        new Delta()
+          .insert('heading', { bold: true, font: 'serif' })
+          .insert('\n', { header: 1 }),
+      );
+      quill.setSelection(7, 0);
+      pressEnter(quill);
+
+      expect(quill.getFormat()).toMatchObject({ bold: true, font: 'serif' });
       expect(quill.getFormat().header).toBeUndefined();
     });
 
