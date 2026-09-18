@@ -617,6 +617,43 @@ const defaultOptions: KeyboardOptions = {
         }
       },
     },
+    // Markdown style "# " through "###### " at the start of a line.
+    'header autofill': {
+      key: ' ',
+      shiftKey: null,
+      collapsed: true,
+      format: {
+        header: false,
+        'code-block': false,
+        blockquote: false,
+        table: false,
+      },
+      prefix: /^#{1,6}$/,
+      handler(range, context) {
+        if (this.quill.scroll.query('header') == null) return true;
+        const { length } = context.prefix;
+        const [line, offset] = this.quill.getLine(range.index);
+        if (offset > length) return true;
+
+        this.quill.insertText(range.index, ' ', Quill.sources.USER);
+        this.quill.history.cutoff();
+        const delta = new Delta()
+          .retain(range.index - offset)
+          .delete(length + 1)
+          // @ts-expect-error Fix me later
+          .retain(line.length() - 2 - offset)
+          .retain(1, { header: length });
+        this.quill.updateContents(delta, Quill.sources.USER);
+        this.quill.history.cutoff();
+        this.quill.setSelection(range.index - length, Quill.sources.SILENT);
+
+        // Deleting the "#" characters takes the formats they carried with them.
+        this.quill.selection.formats(
+          formatsInScope(this.quill, context.format, Scope.INLINE),
+        );
+        return false;
+      },
+    },
     'list autofill': {
       key: ' ',
       shiftKey: null,

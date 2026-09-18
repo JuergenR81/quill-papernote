@@ -266,6 +266,68 @@ describe('Keyboard', () => {
       expect(quill.getText()).toBe(`a${SOFT_BREAK_CHARACTER}d\n`);
     });
 
+    describe('header autofill', () => {
+      const typeSpaceAfter = (
+        prefix: string,
+        attrs: Record<string, unknown> = {},
+      ) => {
+        const quill = createQuill(
+          new Delta().insert(prefix, attrs).insert('\n'),
+        );
+        quill.setSelection(prefix.length, 0);
+        quill.root.dispatchEvent(createKeyboardEvent(' '));
+        return quill;
+      };
+
+      for (const level of [1, 2, 3, 4, 5, 6]) {
+        test(`"${'#'.repeat(level)} " becomes a level ${level} heading`, () => {
+          const quill = typeSpaceAfter('#'.repeat(level));
+
+          expect(quill.getFormat().header).toBe(level);
+          expect(quill.getText()).toBe('\n');
+        });
+      }
+
+      test('seven hashes stay literal text', () => {
+        const quill = typeSpaceAfter('#######');
+
+        // A synthetic keydown does not type the space, so only the absence of the
+        // heading is meaningful here.
+        expect(quill.getFormat().header).toBeUndefined();
+        expect(quill.getText()).toBe('#######\n');
+      });
+
+      test('keeps inline formats the hashes carried', () => {
+        const quill = typeSpaceAfter('##', { bold: true, font: 'serif' });
+
+        expect(quill.getFormat()).toMatchObject({
+          header: 2,
+          bold: true,
+          font: 'serif',
+        });
+      });
+
+      test('does not fire inside an existing heading', () => {
+        const quill = createQuill(
+          new Delta().insert('text #').insert('\n', { header: 1 }),
+        );
+        quill.setSelection(6, 0);
+        quill.root.dispatchEvent(createKeyboardEvent(' '));
+
+        expect(quill.getFormat().header).toBe(1);
+        expect(quill.getText()).toBe('text #\n');
+      });
+
+      test('does not fire mid-line', () => {
+        const quill = createQuill(new Delta().insert('a #').insert('\n'));
+        quill.setSelection(3, 0);
+        quill.root.dispatchEvent(createKeyboardEvent(' '));
+
+        expect(quill.getFormat().header).toBeUndefined();
+        expect(quill.getText()).toBe('a #\n');
+      });
+    });
+
     // The prefix characters carry the line's inline formats, and autofill deletes them.
     describe('list autofill', () => {
       const typeSpaceAfter = (
