@@ -58,7 +58,10 @@ jobs:
       - run: pnpm --filter quill-next run test:fuzz --run
 
   unit:
-    name: Unit Tests
+    # Named after where they run, not what they test: test/unit/ holds both
+    # genuine unit tests and tests that drive a whole Quill instance against a
+    # real DOM. What they share is needing a browser engine, hence the matrix.
+    name: Browser Tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
