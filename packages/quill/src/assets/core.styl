@@ -5,6 +5,7 @@ LIST_STYLE_WIDTH = 1.2em
 LIST_STYLE_MARGIN = 0.3em
 LIST_STYLE_OUTER_WIDTH = LIST_STYLE_MARGIN + LIST_STYLE_WIDTH
 MAX_INDENT = 9
+LINE_HEIGHT = 1.42
 
 resets(arr)
   unquote('list-' + join(' list-', arr))
@@ -40,7 +41,7 @@ resets(arr)
 .ql-editor
   box-sizing: border-box
   counter-reset: resets(0..MAX_INDENT)
-  line-height: 1.42
+  line-height: LINE_HEIGHT
   height: 100%
   outline: none
   overflow-y: auto
@@ -86,12 +87,14 @@ resets(arr)
     > .ql-ui
       color: #777
       // The marker is absolutely positioned inside the item, so it can be centred
-      // against the whole line rather than sitting on the first baseline, which looks
-      // lopsided once the box is large or the line has descenders. Text markers keep
-      // baseline alignment, where it is the typographically correct choice.
+      // rather than sitting on the first baseline, which looks lopsided once the box is
+      // large or the line has descenders. The box is limited to a single line height so
+      // that a soft-broken item keeps its marker beside the first line instead of
+      // floating in the middle of the item. Text markers keep baseline alignment, where
+      // it is the typographically correct choice.
       align-items: center
-      bottom: 0
       display: flex
+      height: LINE_HEIGHT * 1em
       top: 0
 
     // The size class sits on an inline span inside the item, so the marker cannot
@@ -100,14 +103,20 @@ resets(arr)
     // and the text stays where it was.
     &:has(.ql-size-small)
       padding-left: LIST_STYLE_OUTER_WIDTH * 0.75
+      > .ql-ui
+        height: LINE_HEIGHT * 0.75em
       > .ql-ui:before
         font-size: 0.75em
     &:has(.ql-size-large)
       padding-left: LIST_STYLE_OUTER_WIDTH * 1.5
+      > .ql-ui
+        height: LINE_HEIGHT * 1.5em
       > .ql-ui:before
         font-size: 1.5em
     &:has(.ql-size-huge)
       padding-left: LIST_STYLE_OUTER_WIDTH * 2.5
+      > .ql-ui
+        height: LINE_HEIGHT * 2.5em
       > .ql-ui:before
         font-size: 2.5em
 
