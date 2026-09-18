@@ -4,8 +4,8 @@ A fork of [Quill Next](https://github.com/quill-next/quill-next) that fixes losi
 formatting after Enter and soft breaks, adds accessible checklists and markdown
 headings, and makes the repository runnable again.
 
-It exists because these bugs were in the way of another project. Use it if they are in
-yours — but it comes with no support and no stability promises.
+It exists because these bugs were in the way of PaperNote, a Chrome extension. Use it
+if they are in your way too — but it comes with no support and no stability promises.
 
 Everything outside the [fixes](#fixes-on-top-of-quill-next-226) is unchanged: the API,
 the Delta format and the package name `quill-next`, so it drops into an existing
