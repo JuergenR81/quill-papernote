@@ -148,3 +148,69 @@ pnpm run lint            # every package
 3. `pnpm --filter quill-next run test:unit`
 4. `pnpm --filter quill-next run lint`
 5. If it all holds, run the E2E tests
+
+## Remotes
+
+This is a fork, so two remotes are in play:
+
+| Remote | Points at | Used for |
+| --- | --- | --- |
+| `origin` | your fork | everything you push |
+| `upstream` | [quill-next/quill-next](https://github.com/quill-next/quill-next) | seeing what changed there, taking fixes, offering them back |
+
+A fresh clone of the upstream repository has it as `origin`, so it gets renamed rather
+than removed — renaming moves the remote-tracking branches along, so `upstream/main` is
+there immediately without fetching, and the connection stays available for the cases
+below:
+
+```shell
+git remote rename origin upstream
+git remote add origin https://github.com/<you>/quill-papernote.git
+git push -u origin main
+```
+
+### Taking a change from upstream
+
+```shell
+git fetch upstream
+git log --oneline main..upstream/main        # what is new there
+git cherry-pick <commit>
+```
+
+Pull requests that are not merged yet can be fetched by number, which is how an open
+upstream fix can be tried before it lands:
+
+```shell
+git fetch upstream pull/56/head:pr-56
+git log --oneline main..pr-56
+```
+
+Check that it applies before committing to it — `git cherry-pick --no-commit` leaves
+the change staged so the tests can run first.
+
+## Releasing
+
+Releases are cut from a tag. The version lives in `packages/quill/package.json`, and
+the tag has to agree with it — the release script refuses to run otherwise, so a `v2.3.0`
+tag on a commit that still says `2.2.6` cannot quietly publish the wrong thing.
+
+```shell
+cd packages/quill && npm version 2.3.0    # bumps, commits and tags in one step
+git push origin main --follow-tags
+```
+
+Pushing the tag starts `.github/workflows/release.yml`, which runs the full test suite,
+builds and packs the package, and attaches `quill-next-<version>.tgz` to a GitHub
+release. Consuming projects install that tarball by URL:
+
+```shell
+npm install https://github.com/<you>/quill-papernote/releases/download/v2.3.0/quill-next-2.3.0.tgz
+```
+
+Nothing goes to npm unless `scripts/release.js` is given `--npm`. To see what a release
+would do without making one, run the workflow by hand from the Actions tab and leave the
+dry-run box ticked, or locally:
+
+```shell
+node scripts/release.js --dry-run
+```
