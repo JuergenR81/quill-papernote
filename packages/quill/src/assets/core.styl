@@ -85,6 +85,31 @@ resets(arr)
   li[data-list=unchecked]
     > .ql-ui
       color: #777
+      // The marker is absolutely positioned inside the item, so it can be centred
+      // against the whole line rather than sitting on the first baseline, which looks
+      // lopsided once the box is large or the line has descenders. Text markers keep
+      // baseline alignment, where it is the typographically correct choice.
+      align-items: center
+      bottom: 0
+      display: flex
+      top: 0
+
+    // The size class sits on an inline span inside the item, so the marker cannot
+    // inherit it. Scale the glyph and the room reserved for it by the same factor:
+    // the marker's own width and negative margin are in em, so both grow together
+    // and the text stays where it was.
+    &:has(.ql-size-small)
+      padding-left: LIST_STYLE_OUTER_WIDTH * 0.75
+      > .ql-ui:before
+        font-size: 0.75em
+    &:has(.ql-size-large)
+      padding-left: LIST_STYLE_OUTER_WIDTH * 1.5
+      > .ql-ui:before
+        font-size: 1.5em
+    &:has(.ql-size-huge)
+      padding-left: LIST_STYLE_OUTER_WIDTH * 2.5
+      > .ql-ui:before
+        font-size: 2.5em
 
   li[data-list=bullet] > .ql-ui:before
     content: '\2022'

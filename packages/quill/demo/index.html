@@ -139,9 +139,13 @@
             .insert('\n')
             .insert('a link to example.com', { link: 'https://example.com' })
             .insert('\n')
-            .insert('buy milk')
+            .insert('checkbox small', { size: 'small' })
             .insert('\n', { list: 'unchecked' })
-            .insert('walk the dog')
+            .insert('checkbox normal')
+            .insert('\n', { list: 'unchecked' })
+            .insert('checkbox large', { size: 'large' })
+            .insert('\n', { list: 'checked' })
+            .insert('checkbox huge', { size: 'huge' })
             .insert('\n', { list: 'checked' })
             .insert('plain line\n'),
         );
