@@ -54,9 +54,8 @@ jobs:
           pnpm install --frozen-lockfile
         env:
           PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 1
-      - run: pnpm exec playwright install --with-deps
-        working-directory: packages/quill
-      - run: pnpm --filter quill run test:fuzz
+      # No browser download here: the fuzz suite runs in jsdom (test/fuzz/vitest.config.ts).
+      - run: pnpm --filter quill-next run test:fuzz --run
 
   unit:
     name: Unit Tests
