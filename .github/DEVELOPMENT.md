@@ -199,7 +199,8 @@ cd packages/quill && npm version --no-git-tag-version 2.3.0
 cd ../..
 git commit -am "chore(release): 2.3.0"
 git tag -a v2.3.0 -m "Version 2.3.0"
-git push origin main --follow-tags
+git push origin main
+git push origin v2.3.0
 ```
 
 `npm version` only commits and tags when it runs in the root of the git
@@ -207,9 +208,12 @@ repository, so from `packages/quill` it silently edits `package.json` and
 nothing else. Doing those two steps by hand is what makes the tag land on the
 commit that carries the version, which is what the release script checks.
 
-Push with `--follow-tags`, never `--tags`: the upstream tags `v2.2.3`, `v2.2.4`
-and `v2.2.6` are in this clone, they all match `tags: ["v*"]`, and each one
-would start its own release run.
+Push the tag by name, on its own line. Neither `--tags` nor `--follow-tags`
+is safe here: this clone carries the upstream tags `v2.2.3`, `v2.2.4` and
+`v2.2.6`, they are annotated and reachable from `main`, so `--follow-tags`
+sends them along with yours. Each matches `tags: ["v*"]` and starts its own
+release run, which then succeeds — the version in `package.json` at that old
+commit really is the one the tag names.
 
 Pushing the tag starts `.github/workflows/release.yml`, which runs the full test suite,
 builds and packs the package, and attaches `quill-next-<version>.tgz` to a GitHub
