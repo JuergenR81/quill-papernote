@@ -195,9 +195,21 @@ the tag has to agree with it — the release script refuses to run otherwise, so
 tag on a commit that still says `2.2.6` cannot quietly publish the wrong thing.
 
 ```shell
-cd packages/quill && npm version 2.3.0    # bumps, commits and tags in one step
+cd packages/quill && npm version --no-git-tag-version 2.3.0
+cd ../..
+git commit -am "chore(release): 2.3.0"
+git tag -a v2.3.0 -m "Version 2.3.0"
 git push origin main --follow-tags
 ```
+
+`npm version` only commits and tags when it runs in the root of the git
+repository, so from `packages/quill` it silently edits `package.json` and
+nothing else. Doing those two steps by hand is what makes the tag land on the
+commit that carries the version, which is what the release script checks.
+
+Push with `--follow-tags`, never `--tags`: the upstream tags `v2.2.3`, `v2.2.4`
+and `v2.2.6` are in this clone, they all match `tags: ["v*"]`, and each one
+would start its own release run.
 
 Pushing the tag starts `.github/workflows/release.yml`, which runs the full test suite,
 builds and packs the package, and attaches `quill-next-<version>.tgz` to a GitHub
