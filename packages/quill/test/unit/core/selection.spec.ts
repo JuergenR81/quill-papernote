@@ -12,6 +12,7 @@ import Strike from '../../../src/formats/strike.js';
 import { ColorStyle } from '../../../src/formats/color.js';
 import { BackgroundStyle } from '../../../src/formats/background.js';
 import { SizeClass } from '../../../src/formats/size.js';
+import { FontClass } from '../../../src/formats/font.js';
 
 const createSelection = (html: string, container = document.body) => {
   const scroll = createScroll(
@@ -26,6 +27,7 @@ const createSelection = (html: string, container = document.body) => {
       ColorStyle,
       BackgroundStyle,
       SizeClass,
+      FontClass,
     ]),
     container,
   );
@@ -398,6 +400,46 @@ describe('Selection', () => {
       expect(selection.getRange()[0]?.index).toEqual(2);
       expect(selection.root).toEqualHTML(`
         <p>01<em style="color: red; background-color: blue;"><u><span class="ql-cursor">${Cursor.CONTENTS}</span></u></em>23</p>
+      `);
+    });
+
+    test('keeps an attributor when adding a format at the cursor', () => {
+      const selection = createSelection(
+        '<p><span class="ql-font-serif">0123</span></p>',
+      );
+      selection.setRange(new Range(2));
+      selection.format('bold', true);
+      expect(selection.getRange()[0]?.index).toEqual(2);
+      expect(selection.root).toEqualHTML(`
+        <p><span class="ql-font-serif">01</span><strong class="ql-font-serif"><span class="ql-cursor">${Cursor.CONTENTS}</span></strong><span class="ql-font-serif">23</span></p>
+      `);
+    });
+
+    // A font is a class attributor, so it rides on whichever inline blot wraps
+    // the cursor. Toggling another format moves the cursor between blots, and
+    // the font has to travel with it — this is what PaperNote worked around
+    // before, and what breaks first if cursor formatting is refactored.
+    test('keeps the font when a format is switched on at the cursor', () => {
+      const selection = createSelection(
+        '<p><span class="ql-font-serif">0123</span></p>',
+      );
+      selection.setRange(new Range(2));
+      selection.format('bold', true);
+      expect(selection.getRange()[0]?.index).toEqual(2);
+      expect(selection.root).toEqualHTML(`
+        <p><span class="ql-font-serif">01</span><strong class="ql-font-serif"><span class="ql-cursor">${Cursor.CONTENTS}</span></strong><span class="ql-font-serif">23</span></p>
+      `);
+    });
+
+    test('keeps the font when a format is switched off at the cursor', () => {
+      const selection = createSelection(
+        '<p><strong class="ql-font-serif">bold</strong></p><p><br></p>',
+      );
+      selection.setRange(new Range(4));
+      selection.format('bold', false);
+      expect(selection.root).toEqualHTML(`
+        <p><strong class="ql-font-serif">bold</strong><span class="ql-font-serif"><span class="ql-cursor">${Cursor.CONTENTS}</span></span></p>
+        <p><br /></p>
       `);
     });
 

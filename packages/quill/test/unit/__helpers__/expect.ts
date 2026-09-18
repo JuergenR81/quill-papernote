@@ -54,9 +54,11 @@ expect.extend({
     return {
       pass: false,
       message: () =>
+        // diff(expected, received) — passing them the other way round labels
+        // the actual DOM as "Expected" and sends you looking in the wrong place.
         `HTMLs don't match.\n${this.utils.diff(
-          this.utils.stringify(receivedDOM),
           this.utils.stringify(expectedDOM),
+          this.utils.stringify(receivedDOM),
         )}`,
     };
   },
