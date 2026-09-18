@@ -81,6 +81,7 @@
   ],
   "scripts": {
     "build": "./scripts/build production",
+    "build:watch": "babel src --out-dir dist --copy-files --no-copy-ignored --extensions .ts --source-maps --watch",
     "lint": "run-s lint:*",
     "lint:eslint": "eslint .",
     "lint:tsc": "tsc --noEmit --skipLibCheck",

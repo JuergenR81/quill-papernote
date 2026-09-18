@@ -59,6 +59,30 @@ To run just that server without the website:
 pnpm --filter quill-next run start
 ```
 
+### Working against another project
+
+To try a change inside a real application, link the package instead of publishing it:
+
+```shell
+pnpm --filter quill-next run build      # once, for the .d.ts and the CSS
+cd packages/quill && npm link
+cd ../../../your-app && npm link quill-next
+```
+
+Then leave a watcher running while you work:
+
+```shell
+pnpm --filter quill-next run build:watch
+```
+
+That recompiles `src/` into `dist/` on every save, which is what the linked package
+serves. The full `build` additionally emits type declarations and extracts the CSS, so
+run it again when you change `.styl` files or want current `.d.ts`.
+
+Undo the link with `npm unlink quill-next && npm install` in the app, then
+`npm rm --global quill-next`. `ls -ld node_modules/quill-next` tells you which one is
+active: a symlink is your build, a directory is the published package.
+
 > **Known issue — the docs site playground.** The `/standalone/*` and `/playground/*` pages
 > render inside a remote CodeSandbox iframe served over HTTPS, which then tries to load
 > `quill.js` back out of your local HTTP dev server. Browsers block that as mixed content, so
