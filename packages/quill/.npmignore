@@ -4,3 +4,5 @@
 /webpack.config.cjs
 /babel.config.cjs
 /playwright.config.ts
+# stray vitest failure screenshots must never ship
+/test/unit/**/__screenshots__

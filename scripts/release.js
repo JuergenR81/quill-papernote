@@ -1,163 +1,115 @@
 #!/usr/bin/env node
 
+// Builds packages/quill, packs it, and attaches the tarball to a GitHub release.
+//
+// The version is not an argument: it is whatever packages/quill/package.json says,
+// which is the file you edited in the commit you tagged. Bumping, committing, tagging
+// and pushing happen on your machine, so CI never writes back into the repository.
+//
+//   cd packages/quill && npm version 2.3.0
+//   git push origin main --follow-tags
+
 const exec = require("node:child_process").execSync;
 const fs = require("node:fs");
 const path = require("node:path");
-const crypto = require("node:crypto");
 const { parseArgs } = require("node:util");
 
 const args = parseArgs({
   options: {
-    version: { type: "string" },
     "dry-run": { type: "boolean", default: false },
+    npm: { type: "boolean", default: false },
   },
 });
 
 const dryRun = args.values["dry-run"];
+const toNpm = args.values.npm;
 
-/** The only package this script publishes. */
+/** The only package this script releases. */
 const packageFolder = "packages/quill";
-
-if (dryRun) {
-  console.log('Running in "dry-run" mode');
-}
 
 const exitWithError = (message) => {
   console.error(`Exit with error: ${message}`);
   process.exit(1);
 };
 
-if (!process.env.CI) {
-  exitWithError("The script should only be run in CI");
+const run = (command, options) => {
+  if (dryRun) {
+    console.log(`  would run: ${command}`);
+    return;
+  }
+  exec(command, { stdio: "inherit", ...options });
+};
+
+if (dryRun) {
+  console.log('Running in "dry-run" mode: nothing is published or uploaded.\n');
+} else if (!process.env.CI) {
+  exitWithError("Refusing to publish outside CI. Pass --dry-run to try it here.");
 }
 
-exec('echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc');
+const version = JSON.parse(
+  fs.readFileSync(path.join(packageFolder, "package.json"), "utf-8"),
+).version;
 
-async function main() {
-  const configGit = (await import("./utils/configGit.mjs")).default;
-  await configGit();
+// A prerelease such as 2.3.0-rc.1 becomes the "rc" dist-tag and is marked as a
+// prerelease on GitHub; a plain version becomes "latest".
+const match = version.match(
+  /^(?:[0-9]+\.){2}(?:[0-9]+)(?:-(dev|alpha|beta|rc)\.[0-9]+)?$/,
+);
+if (!match) {
+  exitWithError(`Invalid version in ${packageFolder}/package.json: ${version}`);
+}
+const distTag = match[1] || "latest";
 
-  /*
-   * Check that the git working directory is clean
-   */
-  if (exec("git status --porcelain").length) {
+// When a tag triggered the run, it has to agree with the package. Without this a
+// v2.3.0 tag on a commit that still says 2.2.6 would publish 2.2.6 under that tag.
+if (process.env.GITHUB_REF_TYPE === "tag") {
+  const tagged = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+  if (tagged !== version) {
     exitWithError(
-      "Make sure the git working directory is clean before releasing"
+      `Tag v${tagged} does not match ${packageFolder}/package.json (${version})`,
     );
   }
+}
 
-  /*
-   * Check that the version is valid. Also extract the dist-tag from the version.
-   */
-  const [version, distTag] = (() => {
-    const inputVersion = args.values.version;
-    if (!inputVersion) {
-      exitWithError('Missing required argument: "--version <version>"');
-    }
+console.log(`Releasing ${version} (dist-tag: ${distTag})\n`);
 
-    if (inputVersion === "experimental") {
-      const randomId = crypto
-        .randomBytes(Math.ceil(9 / 2))
-        .toString("hex")
-        .slice(0, 9);
+console.log("Building");
+exec("pnpm run build:quill", { stdio: "inherit" });
 
-      return [
-        `0.0.0-experimental-${randomId}-${new Date()
-          .toISOString()
-          .slice(0, 10)
-          .replace(/-/g, "")}`,
-        "experimental",
-      ];
-    }
+const bundle = path.join(packageFolder, "dist", "quill.js");
+if (!fs.existsSync(bundle)) {
+  exitWithError(`Build did not produce ${bundle}`);
+}
 
-    const match = inputVersion.match(
-      /^(?:[0-9]+\.){2}(?:[0-9]+)(?:-(dev|alpha|beta|rc)\.[0-9]+)?$/
-    );
-    if (!match) {
-      exitWithError(`Invalid version: ${inputVersion}`);
-    }
+// The published package carries the repository README.
+fs.writeFileSync(
+  path.join(packageFolder, "README.md"),
+  fs.readFileSync("README.md", "utf-8"),
+);
 
-    return [inputVersion, match[1] || "latest"];
-  })();
+console.log("\nPacking");
+exec("pnpm pack", { stdio: "inherit", cwd: packageFolder });
+const tarball = path.join(packageFolder, `quill-next-${version}.tgz`);
+if (!fs.existsSync(tarball)) {
+  exitWithError(`pnpm pack did not produce ${tarball}`);
+}
+console.log(`  ${tarball}`);
 
-  /*
-   * Get the current version
-   */
-  const currentVersion = JSON.parse(
-    fs.readFileSync("package.json", "utf-8")
-  ).version;
-  console.log(
-    `Releasing with version: ${currentVersion} -> ${version} and dist-tag: ${distTag}`
-  );
+console.log("\nAttaching to the GitHub release");
+const prerelease = distTag === "latest" ? "--latest" : "--prerelease";
+run(
+  `gh release create v${version} ${tarball} ${prerelease} ` +
+    `-t "Version ${version}" --generate-notes`,
+);
 
-  /*
-   * Bump the released package and the workspace root. The other packages keep their
-   * own versions: they are released separately and are not published by this script.
-   */
-  const bump = `npm version ${version} --no-git-tag-version --allow-same-version`;
-  exec(bump, { cwd: packageFolder });
-  exec(bump);
-  exec(`git add package.json ${packageFolder}/package.json`);
-  exec(`git commit -m "v${version}"`);
-  exec(`git tag -a v${version} -m "v${version}"`);
-
-  const pushCommand = `git push origin ${process.env.GITHUB_REF_NAME} --follow-tags`;
-  if (distTag === "experimental") {
-    console.log(`Skipping: "${pushCommand}" for experimental version`);
-  } else {
-    if (dryRun) {
-      console.log(`Skipping: "${pushCommand}" in dry-run mode`);
-    } else {
-      exec(pushCommand);
-    }
-  }
-
-  /*
-   * Build Quill package
-   */
-  console.log("Building Quill");
-  exec("pnpm run build:quill");
-
-  /*
-   * Publish Quill package. The package root is packages/quill and ships its build
-   * output in dist/, which is what "main": "dist/quill.js" points at.
-   */
-  console.log("Publishing Quill");
-  const bundle = path.join(packageFolder, "dist", "quill.js");
-  if (!fs.existsSync(bundle)) {
-    exitWithError(`Build did not produce ${bundle}`);
-  }
-
-  const readme = fs.readFileSync("README.md", "utf-8");
-  fs.writeFileSync(path.join(packageFolder, "README.md"), readme);
-
+if (toNpm) {
+  console.log("\nPublishing to npm");
   // pnpm rewrites the workspace: protocol into real version ranges on publish; npm
   // does not, and would ship unusable dependency specs for the wrapper packages.
-  // --no-git-checks because this script does its own, and the tag is created above.
-  exec(
-    `pnpm publish --tag ${distTag} --no-git-checks${dryRun ? " --dry-run" : ""}`,
-    { cwd: packageFolder },
-  );
-
-  /*
-   * Create GitHub release
-   */
-  if (distTag === "experimental") {
-    console.log("Skipping GitHub release for experimental version");
-  } else {
-    const prereleaseFlag = distTag === "latest" ? "--latest" : " --prerelease";
-    const releaseCommand = `gh release create v${version} ${prereleaseFlag} -t "Version ${version}" --generate-notes`;
-    if (dryRun) {
-      console.log(`Skipping: "${releaseCommand}" in dry-run mode`);
-    } else {
-      exec(releaseCommand);
-    }
+  if (!dryRun) {
+    exec('echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc');
   }
-
-  /*
-   * Create npm package tarball
-   */
-  exec("pnpm pack", { cwd: packageFolder });
+  run(`pnpm publish --tag ${distTag} --no-git-checks`, { cwd: packageFolder });
+} else {
+  console.log("\nSkipping npm; pass --npm to publish there as well.");
 }
-
-main();
