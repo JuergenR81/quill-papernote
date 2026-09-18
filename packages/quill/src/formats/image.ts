@@ -55,8 +55,17 @@ class Image extends EmbedBlot {
   }
 
   html() {
-    const { src, alt, width, height } = this.domNode;
-    const sanitizedSrc = Image.sanitize(src);
+    // Read attributes, not properties: domNode.src resolves a relative URL
+    // against the page, and domNode.width/height report the rendered size even
+    // when no such attribute exists. Both would export something the document
+    // never contained, and disagree with static value()/formats().
+    const ImageClass = this.constructor as typeof Image;
+    const src = ImageClass.value(this.domNode) || '';
+    const alt = this.domNode.getAttribute('alt');
+    const width = this.domNode.getAttribute('width');
+    const height = this.domNode.getAttribute('height');
+
+    const sanitizedSrc = ImageClass.sanitize(src);
     const sanitizedAlt = alt ? escapeText(alt) : '';
 
     let attributes = `src="${escapeText(sanitizedSrc)}"`;
@@ -64,10 +73,10 @@ class Image extends EmbedBlot {
       attributes += ` alt="${sanitizedAlt}"`;
     }
     if (width) {
-      attributes += ` width="${escapeText(String(width))}"`;
+      attributes += ` width="${escapeText(width)}"`;
     }
     if (height) {
-      attributes += ` height="${escapeText(String(height))}"`;
+      attributes += ` height="${escapeText(height)}"`;
     }
 
     return `<img ${attributes}>`;

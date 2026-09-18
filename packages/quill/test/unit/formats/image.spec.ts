@@ -9,6 +9,18 @@ import Image from '../../../src/formats/image.js';
 const createScroll = (html: string) =>
   baseCreateScroll(html, createRegistry([Image]));
 
+class ReplacementImage extends Image {
+  static override blotName = 'image';
+
+  static override value() {
+    return 'https://replacement.example/image.png';
+  }
+}
+
+// A 1x1 transparent PNG, so the element has a rendered size once it loads.
+const PIXEL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
 describe('Image', () => {
   describe('XSS Prevention', () => {
     test('prevents onerror attribute injection', () => {
@@ -157,6 +169,49 @@ describe('Image', () => {
       // Should create valid HTML without alt if not present
       expect(html).toContain('<img');
       expect(html).toContain('src=');
+    });
+
+    test('serializes the value from a registered subclass', () => {
+      const scroll = baseCreateScroll(
+        '<p><br></p>',
+        createRegistry([ReplacementImage]),
+      );
+      const editor = new Editor(scroll);
+      editor.insertEmbed(0, 'image', 'https://original.example/image.png');
+
+      expect(editor.getContents(0, 2).ops[0]).toEqual({
+        insert: { image: 'https://replacement.example/image.png' },
+      });
+      expect(editor.getHTML(0, 2)).toContain(
+        'src="https://replacement.example/image.png"',
+      );
+    });
+
+    test('keeps a relative src relative', () => {
+      const scroll = createScroll('<p><img src="images/photo.png"></p>');
+      const editor = new Editor(scroll);
+
+      expect(editor.getContents(0, 2).ops[0]).toEqual({
+        insert: { image: 'images/photo.png' },
+      });
+      expect(editor.getHTML(0, 2)).toContain('src="images/photo.png"');
+    });
+
+    test('does not invent width and height from the rendered size', async () => {
+      const scroll = createScroll(`<p><img src="${PIXEL}"></p>`);
+      const img = scroll.domNode.querySelector('img') as HTMLImageElement;
+      if (!img.complete) {
+        await new Promise((resolve) => {
+          img.addEventListener('load', resolve, { once: true });
+        });
+      }
+      expect(img.width).toBe(1); // the rendered size the property reports
+
+      const editor = new Editor(scroll);
+      const html = editor.getHTML(0, 2);
+
+      expect(html).not.toContain('width=');
+      expect(html).not.toContain('height=');
     });
 
     test('prevents data attribute injection', () => {
