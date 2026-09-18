@@ -190,43 +190,77 @@ the change staged so the tests can run first.
 
 ## Releasing
 
-Releases are cut from a tag. The version lives in `packages/quill/package.json`, and
-the tag has to agree with it — the release script refuses to run otherwise, so a `v2.3.0`
-tag on a commit that still says `2.2.6` cannot quietly publish the wrong thing.
+A release is cut from a pushed tag. Nothing is written back into the repository from
+CI: you bump, commit, tag and push, and `.github/workflows/release.yml` reacts to the
+tag. The version lives in `packages/quill/package.json`, and the tag has to agree with
+it — `scripts/release.js` refuses otherwise, so a `v2.3.0` tag on a commit that still
+says `2.2.6` cannot quietly ship the wrong thing.
+
+### The steps
 
 ```shell
+# 1. Bump the version. --no-git-tag-version because we make the commit ourselves.
 cd packages/quill && npm version --no-git-tag-version 2.3.0
 cd ../..
+
+# 2. Commit it, so the tag has a commit that carries the version.
 git commit -am "chore(release): 2.3.0"
+
+# 3. Tag that commit. -a makes it annotated, which is what the trigger expects.
 git tag -a v2.3.0 -m "Version 2.3.0"
+
+# 4. Push the branch, then the tag, as two separate pushes.
 git push origin main
 git push origin v2.3.0
 ```
 
-`npm version` only commits and tags when it runs in the root of the git
-repository, so from `packages/quill` it silently edits `package.json` and
-nothing else. Doing those two steps by hand is what makes the tag land on the
-commit that carries the version, which is what the release script checks.
+`npm version` is safe here although the rest of the repo is pnpm-only: it installs
+nothing, it edits one file. But it only creates a commit and a tag when it runs in the
+**root** of the git repository. From `packages/quill` it silently edits `package.json`
+and stops, which is why steps 2 and 3 are spelled out.
 
-Push the tag by name, on its own line. Neither `--tags` nor `--follow-tags`
-is safe here: this clone carries the upstream tags `v2.2.3`, `v2.2.4` and
-`v2.2.6`, they are annotated and reachable from `main`, so `--follow-tags`
-sends them along with yours. Each matches `tags: ["v*"]` and starts its own
-release run, which then succeeds — the version in `package.json` at that old
-commit really is the one the tag names.
-
-Pushing the tag starts `.github/workflows/release.yml`, which runs the full test suite,
-builds and packs the package, and attaches `quill-next-<version>.tgz` to a GitHub
-release. Consuming projects install that tarball by URL:
+Watch the run under **Actions → Release**. It runs the full test suite first
+(`needs: test`), then builds, packs, and attaches `quill-next-<version>.tgz` to a
+GitHub release. Consuming projects install that tarball by URL:
 
 ```shell
 npm install https://github.com/<you>/quill-papernote/releases/download/v2.3.0/quill-next-2.3.0.tgz
 ```
 
-Nothing goes to npm unless `scripts/release.js` is given `--npm`. To see what a release
-would do without making one, run the workflow by hand from the Actions tab and leave the
-dry-run box ticked, or locally:
+### Pushing tags: two traps
+
+**Push the tag by name.** Not `--tags`, and not `--follow-tags`. This clone carries
+upstream's `2.2.1`, `2.2.2`, `v2.2.3`, `v2.2.4` and `v2.2.6`; they are annotated and
+reachable from `main`, so `--follow-tags` sends along every one of them the fork does
+not have yet. Each `v*` among them matches the release trigger, and would succeed —
+the version in `package.json` at that old commit really is the one the tag names.
+
+**GitHub drops tag events past the third.** From the Actions documentation: *"Events
+will not be created for tags when more than three tags are pushed at once."* Push four
+tags in one go and **none** of them triggers anything — silently, with no error and no
+run to look at. This is the likeliest explanation if a tag push seems to do nothing.
+
+### Re-triggering a tag that is already pushed
+
+Pushing a tag that the remote already has is a no-op: the ref does not move, so no
+push event is created and no workflow starts. To run it again, the ref has to change —
+delete it on the remote, then push it again:
+
+```shell
+git push origin --delete v2.3.0    # deletes the tag on the fork
+git push origin v2.3.0             # uploads it again -> triggers the workflow
+```
+
+The local tag is untouched by this. Only do it for a tag nobody has consumed yet;
+moving a tag that others have fetched is how you give people two different "v2.3.0".
+
+### Rehearsing
+
+To see what a release would do without making one, run the workflow by hand from the
+Actions tab and leave the dry-run box ticked, or locally:
 
 ```shell
 node scripts/release.js --dry-run
 ```
+
+Nothing goes to npm unless `scripts/release.js` is given `--npm`.
