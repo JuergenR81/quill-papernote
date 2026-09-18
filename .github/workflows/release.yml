@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       dry-run:
-        description: "Build and pack only; do not create a release."
+        description: "Dry run — build and pack only, do not create a release"
         type: boolean
         default: true
         required: true
