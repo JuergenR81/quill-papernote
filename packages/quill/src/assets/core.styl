@@ -94,7 +94,10 @@ resets(arr)
       // it is the typographically correct choice.
       align-items: center
       display: flex
+      // 1lh follows whatever line-height is in effect, including a value a consumer
+      // sets on .ql-editor; the em value is the fallback where lh is unsupported.
       height: LINE_HEIGHT * 1em
+      height: 1lh
       top: 0
 
     // The size class sits on an inline span inside the item, so the marker cannot
@@ -104,21 +107,21 @@ resets(arr)
     &:has(.ql-size-small)
       padding-left: LIST_STYLE_OUTER_WIDTH * 0.75
       > .ql-ui
-        height: LINE_HEIGHT * 0.75em
-      > .ql-ui:before
         font-size: 0.75em
+        height: LINE_HEIGHT * 1em
+        height: 1lh
     &:has(.ql-size-large)
       padding-left: LIST_STYLE_OUTER_WIDTH * 1.5
       > .ql-ui
-        height: LINE_HEIGHT * 1.5em
-      > .ql-ui:before
         font-size: 1.5em
+        height: LINE_HEIGHT * 1em
+        height: 1lh
     &:has(.ql-size-huge)
       padding-left: LIST_STYLE_OUTER_WIDTH * 2.5
       > .ql-ui
-        height: LINE_HEIGHT * 2.5em
-      > .ql-ui:before
         font-size: 2.5em
+        height: LINE_HEIGHT * 1em
+        height: 1lh
 
   li[data-list=bullet] > .ql-ui:before
     content: '\2022'
